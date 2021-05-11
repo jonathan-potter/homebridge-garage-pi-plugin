@@ -52,56 +52,51 @@ Leds.prototype = {
         fetch('http://192.168.0.184:3000/read_0')
             .then(response => response.json())
             .then(({ error, garage_status }) => {
-                if (error) {
-                    this.log('LEDS RESPONSE STOPPED - ERROR')
-                    // using STOPPED as an error code
-                    callback(Characteristic.CurrentDoorState.STOPPED)
-                }
 
                 this.log('GARAGE_STATUS', garage_status)
-                const callbackSpy = value => {
+                const callbackSpy = (error, value) => {
                     this.log('LEDS SPY', value)
-                    callback(value)
+                    callback(error, value)
                 }
 
                 switch(garage_status) {
                     case 'open':
                         this.log('LEDS RESPONSE OPEN')
-                        return callbackSpy(Characteristic.CurrentDoorState.OPEN) // OPEN
+                        return callbackSpy(error, Characteristic.CurrentDoorState.OPEN) // OPEN
                     case 'closed':
                         this.log('LEDS RESPONSE CLOSED')
-                        return callbackSpy(Characteristic.CurrentDoorState.CLOSED) // CLOSED
+                        return callbackSpy(error, Characteristic.CurrentDoorState.CLOSED) // CLOSED
                     default:
                         switch (this.targetDoorState) {
                             case OPEN:
                                 this.log('LEDS RESPONSE OPENING')
-                                return callbackSpy(Characteristic.CurrentDoorState.OPENING) // OPENING
+                                return callbackSpy(error, Characteristic.CurrentDoorState.OPENING) // OPENING
                             case CLOSED:
                                 this.log('LEDS RESPONSE CLOSING')
-                                return callbackSpy(Characteristic.CurrentDoorState.CLOSING) // CLOSING
+                                return callbackSpy(error, Characteristic.CurrentDoorState.CLOSING) // CLOSING
                         }
                 }
 
                 this.log('LEDS SOMETHING WEIRD HAPPENED')
-                callbackSpy(Characteristic.CurrentDoorState.STOPPED)
+                callbackSpy(error, Characteristic.CurrentDoorState.STOPPED)
             })
     },
 
     setCurrentDoorState(callback) {
         this.log('LEDS setCurrentDoorState')
-        callback(false)
+        callback(undefined, false)
     },
     getTargetDoorState(callback) {
         this.log('LEDS getTargetDoorState', this.targetDoorState)
-        callback(this.targetDoorState)
+        callback(undefined, this.targetDoorState)
     },
     getObstructionDetected(callback) {
         this.log('LEDS getObstructionDetected')
-        callback(false)
+        callback(undefined, false)
     },
     setObstructionDetected(callback) {
         this.log('LEDS setObstructionDetected')
-        callback(false)
+        callback(undefined, false)
     },
 
     setTargetDoorState(open, callback) {
