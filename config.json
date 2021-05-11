@@ -1,8 +1,8 @@
 {
     "accessories": [
         {
-            "name": "Led Thing",
-            "accessory": "Led Thing Accessory"
+            "name": "Garage Thing",
+            "accessory": "Garage Thing Accessory"
         }
     ]
 }
