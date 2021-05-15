@@ -1,8 +1,10 @@
 {
     "accessories": [
         {
-            "name": "Garage Thing",
-            "accessory": "Garage Thing Accessory"
+            "accessory": "garage_controller",
+            "name": "garage 1",
+            "index": 0,
+            "refreshInterval": 30000
         }
     ]
 }

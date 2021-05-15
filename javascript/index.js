@@ -1,7 +1,5 @@
 const fetch = require('node-fetch')
 
-const NOOP = () => {}
-
 let Service, Characteristic, CurrentDoorState;
 
 module.exports = function (homebridge) {
@@ -13,11 +11,12 @@ module.exports = function (homebridge) {
     Service = homebridge.hap.Service;
     Characteristic = homebridge.hap.Characteristic;
     CurrentDoorState = Characteristic.CurrentDoorState
-    homebridge.registerAccessory('4-leds-test',
-        '4-leds-test', Leds);
+    homebridge.registerAccessory('garage_controller_plugin',
+        'garage_controller', Leds);
 };
 
 function Leds (log, config, api) {
+    this.index = config.index
     this.log = log
     this.targetDoorState = CurrentDoorState.CLOSED // change this to get the value on start
     this.refreshInterval = config.refreshInterval || 30000 // 30 seconds
@@ -51,16 +50,16 @@ Leds.prototype = {
         return [infoService, this.service]
     },
 
-    getCurrentDoorState(callback = NOOP) {
+    getCurrentDoorState(callback) {
         this.log('LEDS getCurrentDoorState')
 
-        fetch('http://192.168.0.184:3000/read_0')
+        getFetch(`/status_of_garage_${this.index}`)
             .then(response => response.json())
-            .then(({ garage_status }) => {
+            .then(({ status }) => {
 
-                this.log('GARAGE_STATUS', garage_status)
+                this.log('LEDS GARAGE_STATUS', status)
 
-                switch(garage_status) {
+                switch(status) {
                     case 'open':
                         this.log('LEDS RESPONSE OPEN')
                         return CurrentDoorState.OPEN // OPEN
@@ -116,7 +115,11 @@ Leds.prototype = {
 
         doorPromise
             .then(() => {
+                this.log('LEDS FETCH SUCCESS')
                 callback()
+                this.getCurrentDoorState((error, doorState) => {
+                    this.updateUI(error, doorState);
+                });
             }).catch((error) => {
                 this.log('LEDS FETCH FAIL :', error)
                 callback()
@@ -124,28 +127,28 @@ Leds.prototype = {
     },
 
     closeGarageDoor() {
+        this.log('CLOSE_GARAGE_DOOR')
+
         this.targetDoorState = CurrentDoorState.CLOSED
 
-        return postFetch('/turn_on_0')
-            .then(() => postFetch('/turn_on_1'))
-            .then(() => postFetch('/turn_on_2'))
-            .then(() => postFetch('/turn_on_3'))
+        return postFetch(`/close_garage_${this.index}`)
     },
 
     openGarageDoor() {
+        this.log('OPEN_GARAGE_DOOR')
+
         this.targetDoorState = CurrentDoorState.OPEN
 
-        return postFetch('/turn_off_3')
-            .then(() => postFetch('/turn_off_2'))
-            .then(() => postFetch('/turn_off_1'))
-            .then(() => postFetch('/turn_off_0'))
+        return postFetch(`/open_garage_${this.index}`)
     },
 
     updateUI(error, doorState) {
+        this.log('UPDATE UI')
         this.service.getCharacteristic(Characteristic.CurrentDoorState).updateValue(doorState);
     },
 
     poll() {
+        this.log('POLL')
         if(this.timer) { clearTimeout(this.timer) }
 
         this.getCurrentDoorState((error, doorState) => {
@@ -154,6 +157,10 @@ Leds.prototype = {
 
         this.timer = setTimeout(this.poll.bind(this), this.refreshInterval)
     }
+}
+
+function getFetch (pathName) {
+    return fetch(`http://192.168.0.184:3000${pathName}`)
 }
 
 function postFetch (pathName) {
