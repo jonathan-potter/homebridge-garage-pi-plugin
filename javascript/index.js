@@ -103,43 +103,42 @@ Leds.prototype = {
     setTargetDoorState(targetDoorState, callback) {
         this.log('LEDS setTargetDoorState', targetDoorState)
 
-        if (targetDoorState === CurrentDoorState.OPEN) {
-            this.openGarageDoor(callback)
+        let doorPromise
+
+        switch (targetDoorState) {
+            case CurrentDoorState.OPEN:
+                doorPromise = this.openGarageDoor()
+                break
+            case CurrentDoorState.CLOSED:
+                doorPromise = this.closeGarageDoor()
+                break
         }
 
-        if (targetDoorState === CurrentDoorState.CLOSED) {
-            this.closeGarageDoor(callback)
-        }
+        doorPromise
+            .then(() => {
+                callback()
+            }).catch((error) => {
+                this.log('LEDS FETCH FAIL :', error)
+                callback()
+            })
     },
 
-    closeGarageDoor(callback) {
+    closeGarageDoor() {
         this.targetDoorState = CurrentDoorState.CLOSED
 
         return postFetch('/turn_on_0')
             .then(() => postFetch('/turn_on_1'))
             .then(() => postFetch('/turn_on_2'))
             .then(() => postFetch('/turn_on_3'))
-            .then(() => {
-                callback()
-            }).catch((error) => {
-                this.log('LEDS FETCH FAIL :', error)
-                callback()
-            })
     },
 
-    openGarageDoor(callback) {
+    openGarageDoor() {
         this.targetDoorState = CurrentDoorState.OPEN
 
         return postFetch('/turn_off_3')
             .then(() => postFetch('/turn_off_2'))
             .then(() => postFetch('/turn_off_1'))
             .then(() => postFetch('/turn_off_0'))
-            .then(() => {
-                callback()
-            }).catch((error) => {
-                this.log('LEDS FETCH FAIL :', error)
-                callback()
-            })
     },
 
     updateUI(error, doorState) {
@@ -148,8 +147,6 @@ Leds.prototype = {
 
     poll() {
         if(this.timer) { clearTimeout(this.timer) }
-
-        this.timer = undefined;
 
         this.getCurrentDoorState((error, doorState) => {
             this.updateUI(error, doorState);
