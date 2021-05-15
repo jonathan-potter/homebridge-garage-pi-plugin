@@ -54,7 +54,6 @@ Leds.prototype = {
         this.log('LEDS getCurrentDoorState')
 
         getFetch(`/status_of_garage_${this.index}`)
-            .then(response => response.json())
             .then(({ status }) => {
 
                 this.log('LEDS GARAGE_STATUS', status)
@@ -160,11 +159,12 @@ Leds.prototype = {
 }
 
 function getFetch (pathName) {
-    return fetch(`http://192.168.0.184:3000${pathName}`)
+    return fetch(`http://localhost:3000${pathName}`)
+        .then(response => response.json())
 }
 
 function postFetch (pathName) {
-    return fetch(`http://192.168.0.184:3000${pathName}`, {
+    return fetch(`http://localhost:3000${pathName}`, {
         method: 'POST'
     })
 }
