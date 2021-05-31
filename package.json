@@ -15,6 +15,13 @@
   "author": "Jonathan Potter",
   "license": "UNLICENCED",
   "dependencies": {
-    "node-fetch": "^2.6.1"
+    "node-fetch": "^2.6.1",
+    "rpi-gpio": "^2.1.7"
+  },
+  "devDependencies": {
+    "babel": "^6.23.0",
+    "babel-eslint": "^10.1.0",
+    "eslint": "^7.27.0",
+    "eslint-plugin-babel": "^5.3.1"
   }
 }

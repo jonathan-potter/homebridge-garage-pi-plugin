@@ -1,7 +1,7 @@
 {
     "accessories": [
         {
-            "accessory": "garage_controller",
+            "accessory": "homebridge-led-toggler-plugin",
             "name": "garage 1",
             "index": 0,
             "refreshInterval": 30000

@@ -1,48 +1,48 @@
-const fetch = require('node-fetch')
+const HardwareInterface = require('./hardwareInterface.js')
 
-let Service, Characteristic, CurrentDoorState;
+const REFRESH_INTERVAL = 10000 // 10 seconds
+
+let Service, Characteristic, CurrentDoorState
+
+HardwareInterface.init()
 
 module.exports = function (homebridge) {
-    /*
-        API.registerAccessory(PluginIdentifier,
-            AccessoryName, AccessoryPluginConstructor)
-    */
-
-    Service = homebridge.hap.Service;
-    Characteristic = homebridge.hap.Characteristic;
+    Service = homebridge.hap.Service
+    Characteristic = homebridge.hap.Characteristic
     CurrentDoorState = Characteristic.CurrentDoorState
-    homebridge.registerAccessory('garage_controller_plugin',
-        'garage_controller', Leds);
-};
 
-function Leds (log, config, api) {
+    // API.registerAccessory(PluginIdentifier, AccessoryName, AccessoryPluginConstructor)
+    homebridge.registerAccessory('garage_controller_plugin', 'garage_controller', Leds)
+}
+
+function Leds (log, config) {
     this.index = config.index
     this.log = log
     this.targetDoorState = CurrentDoorState.CLOSED // change this to get the value on start
-    this.refreshInterval = config.refreshInterval || 30000 // 30 seconds
+    this.refreshInterval = config.refreshInterval || REFRESH_INTERVAL
 
     this.service = new Service.GarageDoorOpener(config.name)
 
     this.service.getCharacteristic(Characteristic.CurrentDoorState)
-        .on("get", this.getCurrentDoorState.bind(this))
-        .on("set", this.setCurrentDoorState.bind(this))
+        .on('get', this.getCurrentDoorState.bind(this))
+        .on('set', this.setCurrentDoorState.bind(this))
 
     this.service.getCharacteristic(Characteristic.TargetDoorState)
-        .on("get", this.getTargetDoorState.bind(this))
-        .on("set", this.setTargetDoorState.bind(this))
+        .on('get', this.getTargetDoorState.bind(this))
+        .on('set', this.setTargetDoorState.bind(this))
 
     this.service.getCharacteristic(Characteristic.ObstructionDetected)
-        .on("get", this.getObstructionDetected.bind(this))
-        .on("set", this.setObstructionDetected.bind(this))
+        .on('get', this.getObstructionDetected.bind(this))
+        .on('set', this.setObstructionDetected.bind(this))
 
     // polling
     this.timer = setTimeout(this.poll.bind(this), this.refreshInterval)
 }
 
 Leds.prototype = {
-    getServices() {
+    getServices () {
         this.log('LEDS getServices')
-        if (!this.service) return [];
+        if (!this.service) return []
 
         const infoService = new Service.AccessoryInformation()
         infoService.setCharacteristic(Characteristic.Manufacturer, 'Potter')
@@ -50,55 +50,55 @@ Leds.prototype = {
         return [infoService, this.service]
     },
 
-    getCurrentDoorState(callback) {
+    async getCurrentDoorState (callback) {
         this.log('LEDS getCurrentDoorState')
 
-        getFetch(`/status_of_garage_${this.index}`)
-            .then(({ status }) => {
+        const status = await HardwareInterface.garageStatus(this.index)
 
-                this.log('LEDS GARAGE_STATUS', status)
+        this.log('LEDS GARAGE_STATUS', status)
 
-                switch(status) {
-                    case 'open':
-                        this.log('LEDS RESPONSE OPEN')
-                        return CurrentDoorState.OPEN // OPEN
-                    case 'closed':
-                        this.log('LEDS RESPONSE CLOSED')
-                        return CurrentDoorState.CLOSED // CLOSED
-                }
+        const { CLOSED, CLOSING, OPEN, OPENING, STOPPED } = CurrentDoorState
 
-                switch (this.targetDoorState) {
-                    case CurrentDoorState.OPEN:
-                        this.log('LEDS RESPONSE OPENING')
-                        return CurrentDoorState.OPENING // OPENING
-                    case CurrentDoorState.CLOSED:
-                        this.log('LEDS RESPONSE CLOSING')
-                        return CurrentDoorState.CLOSING // CLOSING
-                }
+        switch(status) {
+            case 'open':
+                this.log('LEDS RESPONSE OPEN')
+                return callback(undefined, OPEN) // OPEN
+            case 'closed':
+                this.log('LEDS RESPONSE CLOSED')
+                return callback(undefined, CLOSED) // CLOSED
+        }
 
-                this.log('LEDS SOMETHING WEIRD HAPPENED')
-                return CurrentDoorState.STOPPED
-            }).then(doorState => callback(undefined, doorState))
+        switch (status === 'transition' && this.targetDoorState) {
+            case OPEN:
+                this.log('LEDS RESPONSE OPENING')
+                return callback(undefined, OPENING) // OPENING
+            case CLOSED:
+                this.log('LEDS RESPONSE CLOSING')
+                return callback(undefined, CLOSING) // CLOSING
+        }
+
+        this.log('LEDS SOMETHING WEIRD HAPPENED')
+        return callback(undefined, STOPPED)
     },
 
-    setCurrentDoorState(callback) {
+    setCurrentDoorState (callback) {
         this.log('LEDS setCurrentDoorState')
         callback(undefined, false)
     },
-    getTargetDoorState(callback) {
+    getTargetDoorState (callback) {
         this.log('LEDS getTargetDoorState', this.targetDoorState)
         callback(undefined, this.targetDoorState)
     },
-    getObstructionDetected(callback) {
+    getObstructionDetected (callback) {
         this.log('LEDS getObstructionDetected')
         callback(undefined, false)
     },
-    setObstructionDetected(callback) {
+    setObstructionDetected (callback) {
         this.log('LEDS setObstructionDetected')
         callback(undefined, false)
     },
 
-    setTargetDoorState(targetDoorState, callback) {
+    setTargetDoorState (targetDoorState, callback) {
         this.log('LEDS setTargetDoorState', targetDoorState)
 
         let doorPromise
@@ -117,54 +117,43 @@ Leds.prototype = {
                 this.log('LEDS FETCH SUCCESS')
                 callback()
                 this.getCurrentDoorState((error, doorState) => {
-                    this.updateUI(error, doorState);
-                });
+                    this.updateUI(error, doorState)
+                })
             }).catch((error) => {
                 this.log('LEDS FETCH FAIL :', error)
                 callback()
             })
     },
 
-    closeGarageDoor() {
+    closeGarageDoor () {
         this.log('CLOSE_GARAGE_DOOR')
 
         this.targetDoorState = CurrentDoorState.CLOSED
 
-        return postFetch(`/close_garage_${this.index}`)
+        return HardwareInterface.closeGarage(this.index)
     },
 
-    openGarageDoor() {
+    openGarageDoor () {
         this.log('OPEN_GARAGE_DOOR')
 
         this.targetDoorState = CurrentDoorState.OPEN
 
-        return postFetch(`/open_garage_${this.index}`)
+        return HardwareInterface.openGarage(this.index)
     },
 
-    updateUI(error, doorState) {
+    updateUI (error, doorState) {
         this.log('UPDATE UI')
-        this.service.getCharacteristic(Characteristic.CurrentDoorState).updateValue(doorState);
+        this.service.getCharacteristic(Characteristic.CurrentDoorState).updateValue(doorState)
     },
 
-    poll() {
+    poll () {
         this.log('POLL')
         if(this.timer) { clearTimeout(this.timer) }
 
         this.getCurrentDoorState((error, doorState) => {
-            this.updateUI(error, doorState);
-        });
+            this.updateUI(error, doorState)
+        })
 
         this.timer = setTimeout(this.poll.bind(this), this.refreshInterval)
-    }
-}
-
-function getFetch (pathName) {
-    return fetch(`http://localhost:3000${pathName}`)
-        .then(response => response.json())
-}
-
-function postFetch (pathName) {
-    return fetch(`http://localhost:3000${pathName}`, {
-        method: 'POST'
-    })
+    },
 }
