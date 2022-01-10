@@ -6,30 +6,34 @@ gpiop.destroy()
 
 /* eslint-disable no-unused-vars */
 const UNUSED_PINS = [
-    35, // GPIO 19
-    36, // GPIO 16
-    37, // GPIO 26
-    38, // GPIO 20
     11, // GPIO 17
     13, // GPIO 27
     15, // GPIO 22
     16, // GPIO 23
+    18, // GPIO 24
+    33, // GPIO 13
+    40, // GPIO 21
+]
+
+const PINS_THAT_DONT_SEEM_TO_WORK = [
+    30, // GPIO 5
+    31, // GPIO 6
 ]
 /* eslint-enable */
 
 const GARAGES = [
     {
-        relay: 40, // GPIO 21
+        relay: 22, // GPIO 25
         sensors: {
-            closed: 31, // GPIO 6
-            open: 33, // GPIO 13
+            closed: 36, // GPIO 16
+            open: 38, // GPIO 20
         },
     },
     {
         relay: 32, // GPIO 12
         sensors: {
-            closed: 18, // GPIO 24
-            open: 22, // GPIO 25
+            closed: 37, // GPIO 26
+            open: 35, // GPIO 19
         },
     },
 ]
@@ -53,9 +57,9 @@ module.exports = class HardwareInterface {
 
         const { relay, sensors } = GARAGES[garageIndex]
 
-        const notOpen = await gpiop.read(sensors.open)
+        const open = await gpiop.read(sensors.open)
 
-        if (!notOpen) { return }
+        if (open) { return }
 
         await gpiop.write(relay, true)
         await wait()
@@ -67,9 +71,9 @@ module.exports = class HardwareInterface {
 
         const { relay, sensors } = GARAGES[garageIndex]
 
-        const notClosed = await gpiop.read(sensors.closed)
+        const closed = await gpiop.read(sensors.closed)
 
-        if (!notClosed) { return }
+        if (closed) { return }
 
         await gpiop.write(relay, true)
         await wait()
@@ -84,9 +88,9 @@ module.exports = class HardwareInterface {
         return Promise.all([
             gpiop.read(sensors.open),
             gpiop.read(sensors.closed),
-        ]).then(([ notOpen, notClosed ]) => {
-            const open = Number(!notOpen).toString()
-            const closed = Number(!notClosed).toString()
+        ]).then(([ open, closed ]) => {
+            open = Number(open).toString()
+            closed = Number(closed).toString()
 
             return ({
                 '00': 'transition',
