@@ -75,6 +75,7 @@ module.exports = (Service, Characteristic, CurrentDoorState) => class Garage {
         return callback(undefined, STOPPED)
     }
 
+    // IT WOULD BE SURPRISING IF THESE EVER GET CALLED
     setCurrentDoorState (callback) {
         this.log('Garage setCurrentDoorState', this.index)
         callback(undefined, false)
@@ -99,17 +100,7 @@ module.exports = (Service, Characteristic, CurrentDoorState) => class Garage {
         this.targetDoorState = targetDoorState
         this.service.getCharacteristic(Characteristic.TargetDoorState).updateValue(targetDoorState)
 
-        let doorPromise
-        switch (targetDoorState) {
-            case CurrentDoorState.OPEN:
-                doorPromise = this.openGarageDoor()
-                break
-            case CurrentDoorState.CLOSED:
-                doorPromise = this.closeGarageDoor()
-                break
-        }
-
-        doorPromise
+        this.openOrCloseGarageDoor(targetDoorState)
             .then(() => {
                 this.log('Garage FETCH SUCCESS')
                 return this.getCurrentDoorState((error, doorState) => {
@@ -120,6 +111,15 @@ module.exports = (Service, Characteristic, CurrentDoorState) => class Garage {
                 this.log('Garage FETCH FAIL :', error)
                 callback()
             })
+    }
+
+    openOrCloseGarageDoor (targetDoorState) {
+        switch (targetDoorState) {
+            case CurrentDoorState.OPEN:
+                return this.openGarageDoor()
+            case CurrentDoorState.CLOSED:
+                return this.closeGarageDoor()
+        }
     }
 
     closeGarageDoor () {
