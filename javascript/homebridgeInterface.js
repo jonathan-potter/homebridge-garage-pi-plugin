@@ -58,15 +58,17 @@ module.exports = (Service, Characteristic, CurrentDoorState) => class Garage {
                 return callback(undefined, CLOSED) // CLOSED
         }
 
-        switch (status === 'transition' && this.targetDoorState) {
-            case OPEN:
-                this.transitioning = true
-                this.log('Garage RESPONSE OPENING', this.index)
-                return callback(undefined, OPENING) // OPENING
-            case CLOSED:
-                this.transitioning = true
-                this.log('Garage RESPONSE CLOSING', this.index)
-                return callback(undefined, CLOSING) // CLOSING
+        if (status === 'transition') {
+            this.transitioning = true
+
+            switch (this.targetDoorState) {
+                case OPEN:
+                    this.log('Garage RESPONSE OPENING', this.index)
+                    return callback(undefined, OPENING) // OPENING
+                case CLOSED:
+                    this.log('Garage RESPONSE CLOSING', this.index)
+                    return callback(undefined, CLOSING) // CLOSING
+            }
         }
 
         this.log('Garage SOMETHING WEIRD HAPPENED', this.index)
