@@ -78,6 +78,7 @@ module.exports = (Service, Characteristic, CurrentDoorState) => class Garage {
         this.log('Garage getTargetDoorState', this.targetDoorState, this.index)
         callback(undefined, this.targetDoorState)
     }
+    // THIS CODE DOESN'T HANDLE OBSTRUCTED
     getObstructionDetected (callback) {
         this.log('Garage getObstructionDetected', this.index)
         callback(undefined, false)
@@ -90,8 +91,10 @@ module.exports = (Service, Characteristic, CurrentDoorState) => class Garage {
     setTargetDoorState (targetDoorState, callback) {
         this.log('Garage setTargetDoorState', targetDoorState, this.index)
 
-        let doorPromise
+        this.targetDoorState = targetDoorState
+        this.service.getCharacteristic(Characteristic.TargetDoorState).updateValue(targetDoorState)
 
+        let doorPromise
         switch (targetDoorState) {
             case CurrentDoorState.OPEN:
                 doorPromise = this.openGarageDoor()
@@ -104,9 +107,9 @@ module.exports = (Service, Characteristic, CurrentDoorState) => class Garage {
         doorPromise
             .then(() => {
                 this.log('Garage FETCH SUCCESS')
-                callback()
-                this.getCurrentDoorState((error, doorState) => {
+                return this.getCurrentDoorState((error, doorState) => {
                     this.updateUI(error, doorState)
+                    callback()
                 })
             }).catch((error) => {
                 this.log('Garage FETCH FAIL :', error)
@@ -117,21 +120,30 @@ module.exports = (Service, Characteristic, CurrentDoorState) => class Garage {
     closeGarageDoor () {
         this.log('CLOSE_GARAGE_DOOR', this.index)
 
-        this.targetDoorState = CurrentDoorState.CLOSED
-
         return HardwareInterface.closeGarage(this.index)
     }
 
     openGarageDoor () {
         this.log('OPEN_GARAGE_DOOR', this.index)
 
-        this.targetDoorState = CurrentDoorState.OPEN
-
         return HardwareInterface.openGarage(this.index)
     }
 
     updateUI (error, doorState) {
         this.log('UPDATE UI', this.index)
+
+        const { CLOSED, OPEN } = CurrentDoorState
+
+        // don't set targetdoor state for OPENING or CLOSING
+        // this is because the TargetDoorState can't be trusted to have been updated
+        // the TargetDoorState will not be updated if the garage was opened using the garage switch
+        switch (doorState) {
+            case this.targetDoorState:
+            case OPEN:
+            case CLOSED:
+                this.service.getCharacteristic(Characteristic.TargetDoorState).updateValue(CLOSED)
+        }
+
         this.service.getCharacteristic(Characteristic.CurrentDoorState).updateValue(doorState)
     }
 
