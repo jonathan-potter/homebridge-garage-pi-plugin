@@ -10,6 +10,7 @@ module.exports = (Service, Characteristic, CurrentDoorState) => class Garage {
         this.log = log
         this.targetDoorState = CurrentDoorState.CLOSED // change this to get the value on start
         this.refreshInterval = config.refreshInterval || REFRESH_INTERVAL
+        this.transitioning = false
 
         this.service = new Service.GarageDoorOpener(config.name)
 
@@ -59,9 +60,11 @@ module.exports = (Service, Characteristic, CurrentDoorState) => class Garage {
 
         switch (status === 'transition' && this.targetDoorState) {
             case OPEN:
+                this.transitioning = true
                 this.log('Garage RESPONSE OPENING', this.index)
                 return callback(undefined, OPENING) // OPENING
             case CLOSED:
+                this.transitioning = true
                 this.log('Garage RESPONSE CLOSING', this.index)
                 return callback(undefined, CLOSING) // CLOSING
         }
@@ -134,14 +137,11 @@ module.exports = (Service, Characteristic, CurrentDoorState) => class Garage {
 
         const { CLOSED, OPEN } = CurrentDoorState
 
-        // don't set targetdoor state for OPENING or CLOSING
-        // this is because the TargetDoorState can't be trusted to have been updated
-        // the TargetDoorState will not be updated if the garage was opened using the garage switch
-        switch (doorState) {
-            case this.targetDoorState:
-            case OPEN:
-            case CLOSED:
-                this.service.getCharacteristic(Characteristic.TargetDoorState).updateValue(CLOSED)
+        // when the door arrives at open or closed it should change the targetDoorState once
+        // this ensures that the targetDoorState gets changed for hardware button initiated transitions
+        if (this.transitioning && [OPEN, CLOSED].includes(doorState)) {
+            this.service.getCharacteristic(Characteristic.TargetDoorState).updateValue(doorState)
+            this.transitioning = false
         }
 
         this.service.getCharacteristic(Characteristic.CurrentDoorState).updateValue(doorState)
