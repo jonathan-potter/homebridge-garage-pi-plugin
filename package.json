@@ -15,7 +15,7 @@
   "author": "Jonathan Potter",
   "license": "UNLICENCED",
   "dependencies": {
-    "node-fetch": "^2.6.1",
+    "node-fetch": "^2.6.7",
     "rpi-gpio": "^2.1.7"
   },
   "devDependencies": {
